@@ -1,7 +1,8 @@
 FLAGS = -o run
 EXEC = g++ $(FLAGS) os.cpp sos.o
+DEP = sos.o PCB.h freespace.h
 
-run: sos.o
+run: $(DEP)
 	$(EXEC)
 
 clean:
