@@ -1,5 +1,17 @@
 #include<iostream>
 #include<list>
+#include<queue>
+#include<map>
+
+#include "freespace.h"
+#include "PCB.h"
+
+// Typedefs for easier use
+typedef map<int, PCB> JobTable; // Index is JobNo. and value is PCB.
+typedef list<freespace> FreeSpaceTable; // List of freespace nodes.
+typedef queue<PCB *> IOQueue; // Queue of pointers to PCBs
+typedef list<PCB *> DrumList; // List of pointers to PCBs in drum.
+
 
 // SOS Functions
 // Channel commands
@@ -14,8 +26,46 @@ void siodisk(int jobnum);
 void siodrum(int jobnum, int jobsize, int coreaddress, int direction);
 void ontrace(); // Print trace
 void offtrace(); // Don't print trace
+
+// Static variables
+static JobTable job_table;
+static FreeSpaceTable free_space_table;
+static IOQueue io_queue;
+static DrumList drum_list;
+static int time; // Stores the current time. Taken from interrupts.
+
+// Global Variables
+bool job_using_cpu;
+int using_drum;
+int job_in_cpu; // -1 if no job, otherwise JobNo.
+int job_in_io; // -1 if no job, otherwise JobNo.
+int job_in_drum;
+
+// Function headers
+int find_mem_loc(int job_size);
+void alloc_mem(int start_address, int job_size);
+void dealloc_mem(int start_address, int job_size);
+void insert_in_drum(int job_to_insert);
+void try_to_swap_in();
+
+// Finds job with highest priority in the job table and returns the job number. Ignores the job of specified number
+int find_job(int ignore_job);
+
+// Schedules jobs
+bool scheduler(int &a, int p[], bool svc_block);
+
+// I/O setup
+void send_io(int &a, int p[]);
 // Main Program
 void startup() {
+	ontrace();
+
+	free_space_table.push_back(FreeSpace(0,100));
+	time = 0;
+	job_using_cpu = false;
+	job_in_cpu = -1;
+	job_in_io = -1;
+	job_in_drum = 0;
 }
 // Interrupt handlers
 void Crint(int& a, int p[]) {
