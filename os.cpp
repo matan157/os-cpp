@@ -6,6 +6,8 @@
 #include "freespace.h"
 #include "PCB.h"
 
+using namespace std;
+
 // Typedefs for easier use
 typedef map<int, PCB> JobTable; // Index is JobNo. and value is PCB.
 typedef list<freespace> FreeSpaceTable; // List of freespace nodes.
@@ -32,7 +34,7 @@ static JobTable job_table;
 static FreeSpaceTable free_space_table;
 static IOQueue io_queue;
 static DrumList drum_list;
-static int time; // Stores the current time. Taken from interrupts.
+static int current_time; // Stores the current time. Taken from interrupts.
 
 // Global Variables
 bool job_using_cpu;
@@ -60,8 +62,8 @@ void send_io(int &a, int p[]);
 void startup() {
 	ontrace();
 
-	free_space_table.push_back(FreeSpace(0,100));
-	time = 0;
+	free_space_table.push_back(freespace(0,100));
+	current_time = 0;
 	job_using_cpu = false;
 	job_in_cpu = -1;
 	job_in_io = -1;
