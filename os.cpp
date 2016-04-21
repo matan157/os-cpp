@@ -77,7 +77,46 @@ void Crint(int& a, int p[]) {
     //          p[3]    =   Job Size, K bytes
     //          p[4]    =   Max CPU time allowed for job
     //          p[5]    =   Current time
+
+    PCB pcb;
+    pcb.job_number = p[1];
+    pcb.priority = p[2];
+    pcb.job_size = p[3];
+    pcb.max_cpu_time = p[4];
+    pcb.cpu_time_used = 0;
+    pcb.in_core = false; // Set in Drmint
+    pcb.is_doing_io = false;
+    pcb.is_blocked = false;
+    pcb.memory_position = NULL;
+
+    job_table.insert(pair<int, PCB>(pcb.job_number, pcb));
+
+    int mem_loc = find_mem_loc(pcb.job_size);
+
+    if(mem_loc >= 0) {
+        if(job_in_drum == 0) {
+            alloc_mem(mem_loc, pcb.job_size);
+            job_table[p[1]].memory_position = mem_loc;
+
+            cout << "Drum is free for job #" << pcb.job_number << endl;
+            job_in_drum = pcb.job_number;
+            siodrum(pcb.job_number, pcb.job_size, mem_loc, 0);
+        } else {
+            cout << "Drum is busy" << endl;
+            insert_in_drum(pcb.job_size);
+        }
+    } else {
+        // Swap job out
+        cout << "No memory left" << endl;
+    }
+
+    if(job_using_cpu)
+        scheduler(a, p, false);
+
+    current_time = p[5];
+    cout << "Time is: " << current_time << endl;
 }
+
 
 void Dskint(int& a, int p[]) {
     // Disk interrupt
@@ -104,10 +143,41 @@ void Svc(int &a, int p[]) {
     //                  completed.
 }
 
-// TODO: 
-//      scheduler();
-//      swapper();
-//      Stuff like that
+
+// My Functions
+
+// First Fit Algorithm
+// Checks the FST for the first space >= job_size
+// returns the address of valid space (0-99)
+// -1 if no space available
+int find_mem_loc(int job_size) {
+    FreeSpaceTable::iterator fst_iter;
+
+    for(fst_iter = free_space_table.begin();
+        fst_iter != free_space_table.end();
+        fst_iter++) 
+            if(fst_iter->size >= job_size)
+                return fst_iter->address;
+    return -1;
+}
+
+// Allocate memory
+void alloc_mem(int start_address, int job_size) {
+    FreeSpaceTable::iterator fst_iter;
+
+    for(fst_iter = free_space_table.begin();
+        fst_iter != free_space_table.end();
+        fst_iter++) {
+        if(fst_iter->address == start_address) {
+            fst_iter->address += job_size;
+            fst_iter->size -= job_size;
+            if(fst_iter->size == 0) {
+                free_space_table.erase(fst_iter);
+                return;
+            }
+        }
+    }
+}
 
 // Running a Job:
 //  Before leaving each interrupt handler
