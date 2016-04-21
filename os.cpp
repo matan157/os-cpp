@@ -2,6 +2,7 @@
 #include<list>
 #include<queue>
 #include<map>
+#include<iterator>
 
 #include "freespace.h"
 #include "PCB.h"
@@ -178,6 +179,74 @@ void alloc_mem(int start_address, int job_size) {
         }
     }
 }
+
+// Deallocates memory that was used by a job that was
+// either terminated or swapped out.
+void dealloc_mem(int start_address, int job_size) {
+    FreeSpaceTable::iterator fst_iter;
+    int i = 0;
+
+    // Find correct position in the FST
+    // for the new entry, based on address
+    for(fst_iter = free_space_table.begin();
+        fst_iter != free_space_table.end();
+        fst_iter++) 
+    {
+        if(fst_iter->address > start_address) {
+            fst_iter = free_space_table.insert(
+                fst_iter, freespace(start_address, job_size));
+            break;
+        }
+    }
+
+    // If start_address is the highest value (last in the list)}
+    if(fst_iter == free_space_table.end())
+        fst_iter = free_space_table.insert(fst_iter, 
+            freespace(start_address, job_size));
+
+    // If fst_iter is not pointing to the last element
+    // then attempt to merge it with the next free space
+    // .end() points to one past the last element
+    if(next(fst_iter) != free_space_table.end()) 
+        if(prev(fst_iter)->address == (start_address - prev(fst_iter)->size)) {
+            prev(fst_iter)->size != fst_iter->size;
+            free_space_table.erase(fst_iter);
+        }
+}
+
+// Inserts a job into a list holding jobs that need
+// to be swapped in
+void insert_in_drum(int job_to_insert) {
+    if(drum_list.empty()) 
+        drum_list.push_front(&job_table[job_to_insert]);
+}
+
+// Sends a job to io when it requests it
+void send_io(int &a, int p[]) {
+    cout << "SendIO called" << endl;
+    io_queue.push(&job_table[job_in_cpu]);
+    job_table[job_in_cpu].on_io_queue = true;
+
+    if(job_in_io == -1) { // IO free? 
+        cout << "Job " << job_in_cpu << " sent to IO" << endl;
+        siodisk(io_queue.front()->job_number);
+        job_in_io = job_in_cpu;
+        job_table[job_in_cpu].is_doing_io = true;
+    }
+
+    // If the IO is being requested, the job must be in the cpu right now
+    p[1] = job_table[job_in_cpu].job_number;
+    p[2] = job_table[job_in_cpu].memory_position;
+    p[3] = job_table[job_in_cpu].job_size;
+    p[4] = job_table[job_in_cpu].max_cpu_time - job_table[job_in_cpu].cpu_time_used;
+    cout << "Time quantum = " << p[4] << endl;
+
+    job_table[io_queue.front()->job_number].on_io_queue = true;
+
+    a =2;
+}
+
+
 
 // Running a Job:
 //  Before leaving each interrupt handler
